@@ -8,10 +8,10 @@ MYNAME=`basename $0`
 MYSTARTTIME=`date +%s`
 MYENDTIME=`date -d '+2 hour' +%s`
 
-MYICINGAADMIN=icinga2
-MYICINGAPWD=icinga2
+MYICINGAADMIN=icinga2adminuser
+MYICINGAPWD=icinga2adminpassword
 
-MYICINGAHOST=morgoth.seidelnet.de
+MYICINGAHOST=youricinga2host.example.com
 MYSEREVER=""
 
 MYCHILDHANDLE="DowntimeNoChildren" # alternative is: DowntimeTriggeredChildren 
