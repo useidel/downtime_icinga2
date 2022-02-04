@@ -7,6 +7,36 @@ The script is intended to be the target of (soft) links which either set or remo
 
 ![screenshot](assets/images/downtime.icinga2.png)
 
+```
+$ downtime.on.sh 
 
-Next on my list the handling of downtimes for children
+ This will set/remove a server including all child services in/from Icinga2 maintenance.
 
+
+ Usage: downtime.on.sh -s <server> <-h icingahost> <-u adminname> <-p password> <-d downtimelength> <-c> 
+
+   -s: the server you want to add a downtime
+   -h: where the icinga2 instance is running
+   -u: the name of the icinga2 admin user
+   -p: the password of the icinga2 admin user
+   -d: in seconds starting from now (default is 7200)
+   -c: cover child objects of the server
+
+$
+$
+$
+$ downtime.off.sh 
+
+ This will set/remove a server including all child services in/from Icinga2 maintenance.
+
+
+ Usage: downtime.off.sh -s <server> <-h icingahost> <-u adminname> <-p password>
+
+   -s: the server you want to remove a downtime
+   -h: where the icinga2 instance is running
+   -u: the name of the icinga2 admin user
+   -p: the password of the icinga2 admin user
+
+$
+
+```
