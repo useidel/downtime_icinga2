@@ -14,6 +14,7 @@ MYICINGAPWD=icinga2adminpassword
 MYICINGAHOST=youricinga2host.example.com
 MYSEREVER=""
 
+MYCOVERCHILDS=OFF
 MYCHILDHANDLE="DowntimeNoChildren" # alternative is: DowntimeTriggeredChildren 
 MYALLSERVICE="true" # if MYCHILDHANDLE=DowntimeTriggeredChildren set this to false and more actions are needed
 MYCOMMENT="Known problem or simple restart"
@@ -36,7 +37,7 @@ echo " This will set/remove a server including all child services in/from Icinga
 echo 
 echo 
 if [ x${MYDOWNTIMESET}y == xONy ]; then
-	echo " Usage: $MYNAME -s <server> <-h icingahost> <-u adminname> <-p password> <-d downtimelength>"
+	echo " Usage: $MYNAME -s <server> <-h icingahost> <-u adminname> <-p password> <-d downtimelength> <-c> " 
 	echo
 	echo "   -s: the server you want to add a downtime"
 else
@@ -49,6 +50,7 @@ echo "   -u: the name of the icinga2 admin user"
 echo "   -p: the password of the icinga2 admin user"
 if [ x${MYDOWNTIMESET}y == xONy ]; then
 	echo "   -d: in seconds starting from now (default is 7200)" 
+	echo "   -c: cover child objects of the server" 
 fi
 echo 
 }
@@ -97,7 +99,7 @@ check_command ping
 check_command curl
 
 
-while getopts "s:h:d:u:p:" OPT
+while getopts "s:h:d:u:p:c" OPT
 do              
         case "$OPT" in
         s)
@@ -135,6 +137,9 @@ do
 	p)
 		MYICINGAPWD=$OPTARG
 		;;
+	c)
+		MYCOVERCHILDS=ON
+		;;
         *)
                 print_usage
                 exit $STATE_UNKNOWN
@@ -148,13 +153,23 @@ echo " Trying to reach Icinga2 instance on $MYICINGAHOST ..."
 echo
 
 if [ x${MYDOWNTIMESET}y == xONy ]; then
-# we set the downtime on the server
-(eval curl -k -s -u $MYICINGAADMIN:$MYICINGAPWD -H \'Accept: application/json\' -X POST \'https://$MYICINGAHOST:5665/v1/actions/schedule-downtime\' -d \'{\"type\": \"Host\", \"filter\": \"host.name==\\\"$MYSERVER\\\"\", \"start_time\": \"$MYSTARTTIME\", \"end_time\": \"$MYENDTIME\", \"author\": \"$MYICINGAADMIN\", \"comment\": \"$MYCOMMENT\", \"all_services\": $MYALLSERVICE, \"child_options\": \"$MYCHILDHANDLE\", \"pretty\": true }\')
+	if [ x${MYCOVERCHILDS}y == xOFFy ]; then
+		# we set the downtime on the server
+		(eval curl -k -s -u $MYICINGAADMIN:$MYICINGAPWD -H \'Accept: application/json\' -X POST \'https://$MYICINGAHOST:5665/v1/actions/schedule-downtime\' -d \'{\"type\": \"Host\", \"filter\": \"host.name==\\\"$MYSERVER\\\"\", \"start_time\": \"$MYSTARTTIME\", \"end_time\": \"$MYENDTIME\", \"author\": \"$MYICINGAADMIN\", \"comment\": \"$MYCOMMENT\", \"all_services\": $MYALLSERVICE, \"child_options\": \"$MYCHILDHANDLE\", \"pretty\": true }\')
+	else
+		MYALLSERVICE=false
+		MYCHILDHANDLE=DowntimeTriggeredChildren
+		# we set the downtime on the server w/o it's services which would lead to duplicates
+		(eval curl -k -s -u $MYICINGAADMIN:$MYICINGAPWD -H \'Accept: application/json\' -X POST \'https://$MYICINGAHOST:5665/v1/actions/schedule-downtime\' -d \'{\"type\": \"Host\", \"filter\": \"host.name==\\\"$MYSERVER\\\"\", \"start_time\": \"$MYSTARTTIME\", \"end_time\": \"$MYENDTIME\", \"author\": \"$MYICINGAADMIN\", \"comment\": \"$MYCOMMENT\", \"all_services\": $MYALLSERVICE, \"child_options\": \"$MYCHILDHANDLE\", \"pretty\": true }\')
+		# and now we set tthe downtime of the services of the server
+		(eval curl -k -s -u $MYICINGAADMIN:$MYICINGAPWD -H \'Accept: application/json\' -X POST \'https://$MYICINGAHOST:5665/v1/actions/schedule-downtime\' -d \'{\"type\": \"Service\", \"filter\": \"host.name==\\\"$MYSERVER\\\"\", \"start_time\": \"$MYSTARTTIME\", \"end_time\": \"$MYENDTIME\", \"author\": \"$MYICINGAADMIN\", \"comment\": \"$MYCOMMENT\", \"pretty\": true }\')
+
+	fi
 else
-# we remove the server downtime (covers keepalive)
-(eval curl -k -s -u $MYICINGAADMIN:$MYICINGAPWD -H \'Accept: application/json\' -X POST \'https://$MYICINGAHOST:5665/v1/actions/remove-downtime\' -d \'{\"type\": \"Host\", \"filter\": \"host.name==\\\"$MYSERVER\\\"\", \"pretty\": true }\')
-# we remove the servers services downtime if they are not removed automatically
-(eval curl -k -s -u $MYICINGAADMIN:$MYICINGAPWD -H \'Accept: application/json\' -X POST \'https://$MYICINGAHOST:5665/v1/actions/remove-downtime\' -d \'{\"type\": \"Service\", \"filter\": \"host.name==\\\"$MYSERVER\\\"\", \"pretty\": true }\')
+	# we remove the server downtime (covers keepalive)
+	(eval curl -k -s -u $MYICINGAADMIN:$MYICINGAPWD -H \'Accept: application/json\' -X POST \'https://$MYICINGAHOST:5665/v1/actions/remove-downtime\' -d \'{\"type\": \"Host\", \"filter\": \"host.name==\\\"$MYSERVER\\\"\", \"pretty\": true }\')
+	# we remove the servers services downtime if they are not removed automatically
+	(eval curl -k -s -u $MYICINGAADMIN:$MYICINGAPWD -H \'Accept: application/json\' -X POST \'https://$MYICINGAHOST:5665/v1/actions/remove-downtime\' -d \'{\"type\": \"Service\", \"filter\": \"host.name==\\\"$MYSERVER\\\"\", \"pretty\": true }\')
 fi
 
 MYRC=$?
