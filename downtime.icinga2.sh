@@ -96,7 +96,6 @@ if [ "$#" -lt 2 ]; then
 fi
 
 check_hostobject(){
-set -x
 		(eval curl -k -s -u $MYICINGAADMIN:$MYICINGAPWD -H \'Accept: application/json\' -X GET \'https://$MYICINGAHOST:5665/v1/objects/hosts\' -d \'{\"filter\": \"host.name==\\\"$1\\\"\", \"pretty\": true }\') |grep '__name' 2>&1 > /dev/null
 return $?
 }
