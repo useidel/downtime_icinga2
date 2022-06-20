@@ -95,6 +95,12 @@ if [ "$#" -lt 2 ]; then
         exit 1
 fi
 
+check_hostobject(){
+set -x
+		(eval curl -k -s -u $MYICINGAADMIN:$MYICINGAPWD -H \'Accept: application/json\' -X GET \'https://$MYICINGAHOST:5665/v1/objects/hosts\' -d \'{\"filter\": \"host.name==\\\"$1\\\"\", \"pretty\": true }\') |grep '__name' 2>&1 > /dev/null
+return $?
+}
+
 check_command ping
 check_command curl
 
@@ -104,15 +110,24 @@ do
         case "$OPT" in
         s)
                 MYSERVER=$OPTARG
-		MYSERVER=`host $MYSERVER|tail -1` 
+		check_hostobject $MYSERVER 
 		MYRC=$?
 		if [ $MYRC -ne 0 ]; then
 			echo
-			echo " Server $OPTARG unknown or hostname resolution not available"
+			echo "Server $OPTARG unknown - will try lokal DNS alias"
 			echo
-			exit 1
-		else
-			MYSERVER=`echo $MYSERVER|cut -f1 -d"."`
+			OLDIFS=$IFS
+			IFS=$'\n'
+			MYSERVERARRAY=( $(host $MYSERVER) ) 
+			IFS=$OLDIFS
+			if [ "X${MYSERVERARRAY[1]}Y" = "XY" ]; then
+				echo
+				echo " Server $OPTARG locally unknown or hostname resolution not available"
+				echo
+				exit 1
+			else
+				MYSERVER=`echo ${MYSERVERARRAY[1]}|cut -f1 -d"."`
+			fi
 		fi
                 ;;
         h)
