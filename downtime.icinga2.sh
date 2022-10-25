@@ -6,17 +6,23 @@ export PATH
 MYNAME=`basename $0`
 
 MYSTARTTIME=`date +%s`
+# default maintenance window duration is 2 hours
 MYENDTIME=`date -d '+2 hour' +%s`
 
+# your icinga instance credentials can be hard coded here
 MYICINGAADMIN=icinga2adminuser
 MYICINGAPWD=icinga2adminpassword
 
 MYICINGAHOST=youricinga2host.example.com
 MYSEREVER=""
 
+# default is to not cover children of the object - the variable MYCHILDHANDLE could be derived from that 
+# will cover this in future releases
 MYCOVERCHILDS=OFF
 MYCHILDHANDLE="DowntimeNoChildren" # alternative is: DowntimeTriggeredChildren 
 MYALLSERVICE="true" # if MYCHILDHANDLE=DowntimeTriggeredChildren set this to false and more actions are needed
+
+# default maintenance message and by whom
 MYCOMMENT="Known problem or simple restart"
 MYAUTHOR="Icinga2-Boss"
 
@@ -26,7 +32,7 @@ MYDOWNTIMESET=OFF # default ist removing downtimes (OFF) ... adding downtimes is
 # ln -s downtime.icinga2.sh downtime.off.sh
 # ln -s downtime.icinga2.sh downtime.on.sh
 
-echo $MYNAME|grep on > /dev/null # needs to be adapted to the actual name of the (soft) links
+echo $MYNAME|grep on > /dev/null # needs to be adapted to the actual name of the (soft) links (see previous comments)
 if [ $? -eq 0 ]; then
 	MYDOWNTIMESET=ON
 fi
@@ -55,6 +61,7 @@ fi
 echo 
 }
 
+# routine to check if a particular command is available
 check_command() {
 which $1 2>&1 > /dev/null
 MYRC=$?
@@ -66,6 +73,7 @@ if [ $MYRC -ne 0 ]; then
 fi
 }
 
+# can reach the icinga host (at least per ICMP)
 ping_icingahost() {
 echo
 echo " ... checking for $1 ..."
@@ -80,6 +88,7 @@ if [ $MYRC -ne 0 ]; then
 fi
 }
 
+# test routine if the provide figure is a positive integer
 check_positivenumber(){
 if ! [ "$1" -gt 0 ] 2> /dev/null
 then
@@ -95,11 +104,14 @@ if [ "$#" -lt 2 ]; then
         exit 1
 fi
 
+# test routine if that server is a valid object on the icinga instance
+# will cover the usage of DNS aliases for a such an object instead of the real hostname further below
 check_hostobject(){
 		(eval curl -k -s -u $MYICINGAADMIN:$MYICINGAPWD -H \'Accept: application/json\' -X GET \'https://$MYICINGAHOST:5665/v1/objects/hosts\' -d \'{\"filter\": \"host.name==\\\"$1\\\"\", \"pretty\": true }\') |grep '__name' 2>&1 > /dev/null
 return $?
 }
 
+# we are checking if ping and curl are available
 check_command ping
 check_command curl
 
