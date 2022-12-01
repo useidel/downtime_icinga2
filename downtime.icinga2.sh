@@ -82,7 +82,7 @@ ping -c 3 $1 > /dev/null 2>&1
 MYRC=$?
 if [ $MYRC -ne 0 ]; then
 	echo
-	echo " Host $MYICINGAHOST not reachable"
+	echo " Host $1 not reachable"
 	echo
 	exit 1
 fi
@@ -99,17 +99,36 @@ then
 fi
 }
 
+# test routine to cover the usage of DNS aliases for a such an object instead of the real hostname 
+check_dns(){
+echo
+echo "Server $1 unknown - will try lokal DNS alias"
+echo
+OLDIFS=$IFS
+IFS=$'\n'
+MYSERVERARRAY=( $(host $1) )
+IFS=$OLDIFS
+if [ "X${MYSERVERARRAY[1]}Y" = "XY" ]; then
+        echo
+        echo " Server $OPTARG locally unknown or hostname resolution not available"
+        echo
+        exit 1
+else
+        MYSERVER=`echo ${MYSERVERARRAY[1]}|cut -f1 -d"."`
+fi
+}
+
+# test routine if that server is a valid object on the icinga instance
+check_hostobject(){
+		(eval curl -k -s -u $MYICINGAADMIN:$MYICINGAPWD -H \'Accept: application/json\' -X GET \'https://$MYICINGAHOST:5665/v1/objects/hosts\' -d \'{\"filter\": \"host.name==\\\"$1\\\"\", \"pretty\": true }\') |grep '__name' 2>&1 > /dev/null
+return $?
+}
+
 if [ "$#" -lt 2 ]; then
         print_usage
         exit 1
 fi
 
-# test routine if that server is a valid object on the icinga instance
-# will cover the usage of DNS aliases for a such an object instead of the real hostname further below
-check_hostobject(){
-		(eval curl -k -s -u $MYICINGAADMIN:$MYICINGAPWD -H \'Accept: application/json\' -X GET \'https://$MYICINGAHOST:5665/v1/objects/hosts\' -d \'{\"filter\": \"host.name==\\\"$1\\\"\", \"pretty\": true }\') |grep '__name' 2>&1 > /dev/null
-return $?
-}
 
 # we are checking if ping and curl are available
 check_command ping
@@ -124,21 +143,7 @@ do
 		check_hostobject $MYSERVER 
 		MYRC=$?
 		if [ $MYRC -ne 0 ]; then
-			echo
-			echo "Server $OPTARG unknown - will try lokal DNS alias"
-			echo
-			OLDIFS=$IFS
-			IFS=$'\n'
-			MYSERVERARRAY=( $(host $MYSERVER) ) 
-			IFS=$OLDIFS
-			if [ "X${MYSERVERARRAY[1]}Y" = "XY" ]; then
-				echo
-				echo " Server $OPTARG locally unknown or hostname resolution not available"
-				echo
-				exit 1
-			else
-				MYSERVER=`echo ${MYSERVERARRAY[1]}|cut -f1 -d"."`
-			fi
+			check_dns $MYSERVER
 		fi
                 ;;
         h)
