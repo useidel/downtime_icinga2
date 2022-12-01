@@ -144,6 +144,11 @@ do
 		MYRC=$?
 		if [ $MYRC -ne 0 ]; then
 			check_dns $MYSERVER
+			if [ $MYRC -ne 0 ]; then
+				# check if FQDN is involved an we should try the short version
+				MYSERVER=`echo $MYSERVER|cut -f1 -d"."`
+				check_hostobject $MYSERVER
+			fi
 		fi
                 ;;
         h)
