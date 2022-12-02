@@ -100,6 +100,7 @@ fi
 }
 
 # test routine to cover the usage of DNS aliases for a such an object instead of the real hostname 
+# and as well if FQDNs are used
 check_dns(){
 echo
 echo "Server $1 unknown - will try lokal DNS alias"
@@ -109,10 +110,16 @@ IFS=$'\n'
 MYSERVERARRAY=( $(host $1) )
 IFS=$OLDIFS
 if [ "X${MYSERVERARRAY[1]}Y" = "XY" ]; then
-        echo
-        echo " Server $OPTARG locally unknown or hostname resolution not available"
-        echo
-        exit 1
+        echo ${MYSERVERARRAY[0]} | grep Host > /dev/null 2>&1
+        MYRC=$?
+        if [ $MYRC -eq 0 ]; then
+                echo
+                echo " Server $OPTARG locally unknown or hostname resolution not available"
+                echo
+                exit 1
+        else
+                MYSERVER=`echo ${MYSERVERARRAY[0]}|cut -f1 -d"."`
+        fi
 else
         MYSERVER=`echo ${MYSERVERARRAY[1]}|cut -f1 -d"."`
 fi
@@ -144,11 +151,6 @@ do
 		MYRC=$?
 		if [ $MYRC -ne 0 ]; then
 			check_dns $MYSERVER
-			if [ $MYRC -ne 0 ]; then
-				# check if FQDN is involved an we should try the short version
-				MYSERVER=`echo $MYSERVER|cut -f1 -d"."`
-				check_hostobject $MYSERVER
-			fi
 		fi
                 ;;
         h)
